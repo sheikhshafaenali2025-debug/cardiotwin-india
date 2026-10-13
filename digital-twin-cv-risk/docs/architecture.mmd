@@ -1,0 +1,14 @@
+flowchart LR
+  EHR["Synthetic EHR profiles"] --> E["EHR feature encoder"]
+  W["Synthetic hourly wearable stream"] --> P["Align, resample and form 7-day windows"]
+  P --> T["1D CNN + GRU temporal encoder"]
+  E --> F["Concatenate embeddings"]
+  T --> F
+  F --> H["Sigmoid risk head"]
+  H --> I["Score, proxy alert and heuristic drivers"]
+  I --> D["Streamlit research dashboard"]
+  W --> L["Transparent next-week proxy labeler"]
+  E --> L
+  L --> TR["Patient-level train, validation and test split"]
+  TR --> E
+  TR --> T
