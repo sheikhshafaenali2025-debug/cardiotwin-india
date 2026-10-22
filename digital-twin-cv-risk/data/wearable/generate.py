@@ -1,4 +1,4 @@
-"""Simulate 14 days of hourly wearable-like readings with diurnal patterns."""
+"""Simulate hourly wearable-like readings with diurnal patterns."""
 from pathlib import Path
 import argparse
 import numpy as np
@@ -11,7 +11,9 @@ def generate_wearable(ehr: pd.DataFrame, days: int = 14, seed: int = 8) -> pd.Da
         risk=float(np.clip(risk,0,1.5)); base_hr=66+13*risk+rng.normal(0,4); base_hrv=57-21*risk+rng.normal(0,7)
         daily_event=False
         for h in range(days*24):
-            t=pd.Timestamp("2026-01-01",tz="UTC")+pd.Timedelta(hours=h); hour=t.hour
+            # Generate the simulated day in India local time so sleep windows,
+            # daily aggregation, and the clinician timeline share one calendar.
+            t=pd.Timestamp("2026-01-01",tz="Asia/Kolkata")+pd.Timedelta(hours=h); hour=t.hour
             if h%24==0: daily_event=(h//24>=7 and rng.random()<(.06+.18*risk))
             sleep=hour>=22 or hour<7
             hr=base_hr + (8 if not sleep and 9<=hour<=19 else -7 if sleep else 0)+rng.normal(0,3)

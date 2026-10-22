@@ -1,14 +1,19 @@
 flowchart LR
-  EHR["Synthetic EHR profiles"] --> E["EHR feature encoder"]
-  W["Synthetic hourly wearable stream"] --> P["Align, resample and form 7-day windows"]
-  P --> T["1D CNN + GRU temporal encoder"]
-  E --> F["Concatenate embeddings"]
-  T --> F
-  F --> H["Sigmoid risk head"]
-  H --> I["Score, proxy alert and heuristic drivers"]
-  I --> D["Streamlit research dashboard"]
-  W --> L["Transparent next-week proxy labeler"]
-  E --> L
-  L --> TR["Patient-level train, validation and test split"]
-  TR --> E
-  TR --> T
+  subgraph Inputs["Synthetic research inputs"]
+    EHR["EHR: demographics, conditions, labs"]
+    W["Wearable: HR, HRV, sleep, steps, BP"]
+  end
+  EHR --> V["Schema, unit, time-zone and completeness checks"]
+  W --> V
+  V --> S["Patient history and rolling baseline"]
+  S --> F["Causal daily features + missingness flags"]
+  F --> B["Logistic regression and XGBoost baselines"]
+  F --> H["CNN-GRU comparison model"]
+  B --> G["Synthetic proxy score + reason signals"]
+  H --> G
+  G --> D["Streamlit clinician-facing research dashboard"]
+  W --> L["Transparent future-window proxy labeler"]
+  EHR --> L
+  L --> T["Patient-grouped train, validation and holdout evaluation"]
+  T --> B
+  T --> H
