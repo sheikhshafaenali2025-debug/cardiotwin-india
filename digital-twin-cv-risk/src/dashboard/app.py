@@ -148,6 +148,9 @@ with st.sidebar:
         st.error(f"Could not read the generated cohort: {exc}")
         st.stop()
     patient_id = st.selectbox("Virtual patient", ehr.patient_id.tolist())
+    if patient_id is None:
+        st.error("No virtual patients are available in the generated cohort.")
+        st.stop()
     alert_threshold = st.slider("Display alert cutoff", 0.1, 0.9, 0.5, 0.05)
     st.caption("Changing the cutoff changes the displayed alert only.")
 
@@ -204,7 +207,6 @@ st.subheader("14-day simulated wearable timeline")
 st.plotly_chart(
     timeline_figure(daily),
     width="stretch",
-    alt="Fourteen-day synthetic trends for heart rate, HRV, sleep, and steps; red marks denote simulated rule days.",
 )
 st.caption(
     "Dates belong to the fixed synthetic simulation. Red marks show days meeting the "
@@ -246,6 +248,5 @@ else:
         event_history,
         hide_index=True,
         width="stretch",
-        alt="Simulated days when at least two rule indicators were present.",
     )
 st.caption("No clinical outcomes are simulated or available in this project.")
