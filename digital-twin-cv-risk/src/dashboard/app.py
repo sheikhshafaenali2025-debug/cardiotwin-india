@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT))
 ARTIFACTS = ROOT / "artifacts"
 
 from src.inference.predict import predict
+from src.inference.twin import personalized_drift, simulate_futures
 from src.preprocessing.pipeline import daily_features
 
 
@@ -32,11 +33,13 @@ def load_inputs():
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def load_prediction(patient_id: str, threshold: float, sleep_hours=None, steps=None):
-    scenario = None
-    if sleep_hours is not None or steps is not None:
-        scenario = {"sleep_hours": sleep_hours, "steps": steps}
-    return predict(patient_id, ARTIFACTS, threshold=threshold, scenario=scenario)
+def load_prediction(patient_id: str, threshold: float):
+    return predict(patient_id, ARTIFACTS, threshold=threshold)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_futures(patient_id: str):
+    return simulate_futures(patient_id, ARTIFACTS, horizon=14, simulations=30)
 
 
 def add_rule_flags(frame: pd.DataFrame) -> pd.DataFrame:
@@ -203,38 +206,108 @@ with st.container(border=True):
     for factor in result["top_factors"]:
         st.write(f"- {factor}")
 
+st.subheader("Personalized baseline · Twin Drift")
+st.caption(
+    "Compares the latest 7 simulated days with the preceding 14 days for this virtual patient. "
+    "Drift labels are display heuristics, not clinical thresholds."
+)
+drift = personalized_drift(all_daily)
+if not drift["ready"]:
+    st.info(drift["message"])
+else:
+    drift_stats = st.columns(3)
+    drift_stats[0].metric("Baseline window", f"{drift['baseline_days']} covered days")
+    drift_stats[1].metric("Recent window", f"{drift['recent_days']} covered days")
+    drift_stats[2].metric("Signal quality", drift["quality_label"], f"{drift['quality']:.0%} coverage")
+    if drift["signals"]:
+        for signal in drift["signals"]:
+            st.warning(signal)
+    else:
+        st.info("No sustained synthetic deviation from this patient's baseline was detected.")
+    st.dataframe(drift["table"], hide_index=True, use_container_width=True)
+    st.caption(
+        "A limited coverage rating means fewer valid days support the comparison. "
+        "Personal baselines describe this synthetic history and do not establish what is healthy for a person."
+    )
+
+st.subheader("Branching Futures Simulator")
+st.caption(
+    "Explore three hypothetical 14-day paths for the same virtual patient. The simulator "
+    "bootstraps recent synthetic days and changes only the simulated sleep or activity inputs."
+)
+try:
+    futures = load_futures(patient_id)
+except Exception as exc:
+    st.error(f"Could not simulate this virtual patient's future paths: {exc}")
+    st.stop()
+
+future_figure = go.Figure()
+branch_colors = {
+    "Continue current pattern": "#176B63",
+    "More regular sleep": "#4677A8",
+    "Gradual activity increase": "#9B6A35",
+}
+for branch, color in branch_colors.items():
+    path = futures.loc[futures.branch == branch].sort_values("date")
+    future_figure.add_trace(
+        go.Scatter(
+            x=path.date,
+            y=path.lower,
+            mode="lines",
+            line={"width": 0},
+            showlegend=False,
+            hoverinfo="skip",
+        )
+    )
+    future_figure.add_trace(
+        go.Scatter(
+            x=path.date,
+            y=path.upper,
+            mode="lines",
+            line={"width": 0},
+            fill="tonexty",
+            fillcolor=f"{color}22",
+            name=f"{branch} · 10–90% range",
+            hoverinfo="skip",
+        )
+    )
+    future_figure.add_trace(
+        go.Scatter(
+            x=path.date,
+            y=path["median"],
+            mode="lines+markers",
+            line={"color": color, "width": 2},
+            marker={"size": 5},
+            name=branch,
+            hovertemplate="%{x|%b %d}: model score %{y:.2f}<extra></extra>",
+        )
+    )
+future_figure.update_layout(
+    height=430,
+    xaxis_title="Synthetic simulation date",
+    yaxis_title="Unitless model response",
+    yaxis={"range": [0, 1]},
+    hovermode="x unified",
+    legend={"orientation": "h", "y": 1.12},
+    margin={"l": 12, "r": 18, "t": 45, "b": 25},
+)
+st.plotly_chart(future_figure, use_container_width=True)
+st.caption(
+    "The sleep path gradually adds up to 0.5 simulated hours/night; the activity path "
+    "gradually adds up to 15% simulated steps/day. Shaded regions show the 10th–90th "
+    "percentile across 30 bootstrap runs. Scores show model response to synthetic inputs, "
+    "not causal treatment effects or probabilities of real events."
+)
+
 st.subheader("14-day simulated wearable timeline")
 st.plotly_chart(
     timeline_figure(daily),
-    width="stretch",
+    use_container_width=True,
 )
 st.caption(
     "Dates belong to the fixed synthetic simulation. Red marks show days meeting the "
     "transparent two-signal rule, not model alerts or clinical events. The score above "
     "applies only to the latest seven-day input window."
-)
-
-st.subheader("Illustrative what-if controls")
-st.caption(
-    "This reruns the model with the latest seven days replaced by these wearable values. "
-    "It is an input scenario only, not a treatment effect or clinical recommendation."
-)
-sleep_col, activity_col = st.columns(2)
-with sleep_col:
-    sleep_goal = st.slider("Sleep target (hours/night)", 5.0, 9.0, 7.0, 0.5)
-with activity_col:
-    activity_goal = st.slider("Activity target (steps/day)", 2000, 12000, 7000, 500)
-
-scenario_result = load_prediction(patient_id, alert_threshold, sleep_goal, activity_goal)
-scenario_change = scenario_result["risk_score"] - result["risk_score"]
-scenario_col, comparison_col = st.columns(2)
-with scenario_col:
-    st.metric("Model score in this input scenario", f"{scenario_result['risk_score']:.2f}")
-with comparison_col:
-    st.metric("Difference from current input score", f"{scenario_change:+.2f}", delta_color="off")
-st.caption(
-    "The change reflects the model response to edited inputs in this synthetic dataset. "
-    "It does not show that changing sleep or activity will change a real person's health outcome."
 )
 
 st.subheader("Synthetic rule-event history")
@@ -247,6 +320,6 @@ else:
     st.dataframe(
         event_history,
         hide_index=True,
-        width="stretch",
+        use_container_width=True,
     )
 st.caption("No clinical outcomes are simulated or available in this project.")

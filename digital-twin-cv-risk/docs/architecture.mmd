@@ -5,13 +5,18 @@ flowchart LR
   end
   EHR --> V["Schema, unit, time-zone and completeness checks"]
   W --> V
-  V --> S["Patient history and rolling baseline"]
-  S --> F["Causal daily features + missingness flags"]
+  V --> F["Causal daily features + missingness flags"]
+  F --> S["Patient baseline: prior 14 days vs latest 7"]
+  S --> D["Twin Drift: robust, coverage-aware deviations"]
   F --> B["Logistic regression and XGBoost baselines"]
   F --> H["CNN-GRU comparison model"]
   B --> G["Synthetic proxy score + reason signals"]
   H --> G
-  G --> D["Streamlit clinician-facing research dashboard"]
+  G --> UI["Streamlit clinician-facing research dashboard"]
+  F --> Q["Bootstrap 14-day future paths"]
+  G --> Q
+  Q --> UI
+  D --> UI
   W --> L["Transparent future-window proxy labeler"]
   EHR --> L
   L --> T["Patient-grouped train, validation and holdout evaluation"]
