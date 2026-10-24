@@ -45,9 +45,7 @@ The dashboard also includes:
 
 ## Demo video
 
-**Video link:** [Add your unlisted YouTube demo link here]
-
-The competition checklist requests a 15–20 minute demonstration video. Add the publicly viewable link above after uploading the video.
+**Video link:** in work
 
 ## Open-source license
 
