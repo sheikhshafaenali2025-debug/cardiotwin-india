@@ -5,9 +5,9 @@
 ## Team details
 
 - **Team size:** 1 (individual participant)
-- **Team/member name:** [Add your full name]
-- **College/incubator:** [Add your college or incubator; write “Independent participant” if applicable]
-- **Contact:** [Optional public contact email]
+- **Team/member name:** Sheikh Shafaen Ali
+- **College/incubator:** Vit Vellore
+- **Contact:** sheikh.shafaenali2025@vitstudent.ac.in
 
 ## Project title
 
