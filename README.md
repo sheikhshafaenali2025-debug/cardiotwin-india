@@ -6,4 +6,4 @@ A research prototype for exploring cardiovascular risk signals from synthetic we
 
 ## Project files
 
-The complete project is in [`digital-twin-cv-risk/`](digital-twin-cv-risk/README.md). Follow its README for setup and run instructions.
+The complete project is in [`digital-twin-cv-risk/`](digital-twin-cv-risk/README.md). Follow its README (digital-twin-cv-risk/README.md) for info, setup and run instructions.
